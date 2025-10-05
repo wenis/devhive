@@ -1,6 +1,7 @@
 {
-  "name": "@google/gemini-cli",
-  "version": "0.9.0-nightly.20251001.163dba7e",
+  "name": "devhive",
+  "description": "DevHive: Opinionated CLI for BMAD-inspired AI dev workflows—local LLMs for planning, cloud APIs for parallel agentic coding. Fork of Gemini CLI with LangGraph.",
+  "version": "0.1.0",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -11,10 +12,9 @@
   "private": "true",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/google-gemini/gemini-cli.git"
+    "url": "git+https://github.com/wenis/devhive.git"
   },
   "config": {
-    "sandboxImageUri": "us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.9.0-nightly.20251001.163dba7e"
   },
   "scripts": {
     "start": "cross-env node scripts/start.js",
@@ -62,7 +62,7 @@
     }
   },
   "bin": {
-    "gemini": "bundle/gemini.js"
+    "devhive": "bundle/gemini.js"
   },
   "files": [
     "bundle/",
@@ -106,6 +106,7 @@
     "yargs": "^17.7.2"
   },
   "dependencies": {
+    "@langchain/langgraph": "^0.4.9",
     "@testing-library/dom": "^10.4.1",
     "simple-git": "^3.28.0"
   },

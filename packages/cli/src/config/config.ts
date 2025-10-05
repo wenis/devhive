@@ -11,6 +11,8 @@ import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
 import process from 'node:process';
 import { mcpCommand } from '../commands/mcp.js';
+import { epicCommand } from '../commands/epic.js';
+import { swarmCommand } from '../commands/swarm.js';
 import type {
   FileFilteringOptions,
   MCPServerConfig,
@@ -333,7 +335,10 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
         }),
     )
     // Register MCP subcommands
-    .command(mcpCommand);
+    .command(mcpCommand)
+    // Register DevHive BMAD workflow commands
+    .command(epicCommand)
+    .command(swarmCommand);
 
   if (settings?.experimental?.extensionManagement ?? true) {
     yargsInstance.command(extensionsCommand);

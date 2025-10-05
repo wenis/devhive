@@ -1,316 +1,531 @@
-# Gemini CLI
+# DevHive
 
-[![Gemini CLI CI](https://github.com/google-gemini/gemini-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/google-gemini/gemini-cli/actions/workflows/ci.yml)
-[![Gemini CLI E2E](https://github.com/google-gemini/gemini-cli/actions/workflows/e2e.yml/badge.svg)](https://github.com/google-gemini/gemini-cli/actions/workflows/e2e.yml)
-[![Version](https://img.shields.io/npm/v/@google/gemini-cli)](https://www.npmjs.com/package/@google/gemini-cli)
-[![License](https://img.shields.io/github/license/google-gemini/gemini-cli)](https://github.com/google-gemini/gemini-cli/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/wenis/devhive)](https://github.com/wenis/devhive/blob/main/LICENSE)
 
-![Gemini CLI Screenshot](./docs/assets/gemini-screenshot.png)
+**DevHive** is an opinionated CLI tool for AI-driven software development, inspired by [BMAD-METHOD](https://github.com/cagostino/BMAD-METHOD). It orchestrates local LLMs (via llama.cpp or compatible endpoints) for cost-efficient planning, requirements, and architecture, while leveraging cloud APIs (Claude, Gemini, or Grok) for parallel story implementation by a 'team' of agentic developers.
 
-Gemini CLI is an open-source AI agent that brings the power of Gemini directly into your terminal. It provides lightweight access to Gemini, giving you the most direct path from your prompt to our model.
+Built as a fork of [Gemini CLI](https://github.com/google-gemini/gemini-cli) with [LangGraph](https://github.com/langchain-ai/langgraph) workflows, DevHive enforces structured agile processes for rapid, scalable project building—from epics to code commits.
 
-## 🚀 Why Gemini CLI?
+## 🎯 Philosophy
 
-- **🎯 Free tier**: 60 requests/min and 1,000 requests/day with personal Google account.
-- **🧠 Powerful Gemini 2.5 Pro**: Access to 1M token context window.
-- **🔧 Built-in tools**: Google Search grounding, file operations, shell commands, web fetching.
-- **🔌 Extensible**: MCP (Model Context Protocol) support for custom integrations.
-- **💻 Terminal-first**: Designed for developers who live in the command line.
-- **🛡️ Open source**: Apache 2.0 licensed.
+**BMAD-Inspired Workflow:**
+- **Break down** - Decompose epics into manageable stories using local LLMs
+- **Multiply** - Spawn parallel AI agents to work on stories simultaneously
+- **Assemble** - Review and integrate completed work
+- **Deploy** - Ship features faster with structured collaboration
+
+**Cost-Optimized:**
+- Use **cheap local LLMs** (Llama, Qwen, etc.) for planning and architecture
+- Use **powerful cloud APIs** (Claude, Gemini, Grok) for actual coding
+- Save $$$ by routing tasks to the right model for the job
+
+**Dual-Mode Operation:**
+1. **Structured Workflows** - BMAD orchestration for team-scale development
+2. **Interactive Mode** - Full Gemini CLI experience for ad-hoc tasks
 
 ## 📦 Installation
 
-### Quick Install
-
-#### Run instantly with npx
-
-```bash
-# Using npx (no installation required)
-npx https://github.com/google-gemini/gemini-cli
-```
-
-#### Install globally with npm
-
-```bash
-npm install -g @google/gemini-cli
-```
-
-#### Install globally with Homebrew (macOS/Linux)
-
-```bash
-brew install gemini-cli
-```
-
-#### System Requirements
+### System Requirements
 
 - Node.js version 20 or higher
 - macOS, Linux, or Windows
+- (Optional) Local LLM server for planning mode
 
-## Release Cadence and Tags
-
-See [Releases](./docs/releases.md) for more details.
-
-### Preview
-
-New preview releases will be published each week at UTC 2359 on Tuesdays. These releases will not have been fully vetted and may contain regressions or other outstanding issues. Please help us test and install with `preview` tag.
+### Install from source
 
 ```bash
-npm install -g @google/gemini-cli@preview
+git clone https://github.com/wenis/devhive.git
+cd devhive
+npm install
+npm run build
+npm link
 ```
 
-### Stable
-
-- New stable releases will be published each week at UTC 2000 on Tuesdays, this will be the full promotion of last week's `preview` release + any bug fixes and validations. Use `latest` tag.
+### Quick Start
 
 ```bash
-npm install -g @google/gemini-cli@latest
+devhive
 ```
 
-### Nightly
+## 🔧 Configuration
 
-- New releases will be published each week at UTC 0000 each day, This will be all changes from the main branch as represented at time of release. It should be assumed there are pending validations and issues. Use `nightly` tag.
+### Local LLM Setup (for Planning Mode)
+
+DevHive supports any OpenAI-compatible endpoint for planning tasks:
+
+#### Option 1: llama.cpp Server
 
 ```bash
-npm install -g @google/gemini-cli@nightly
+# Start llama.cpp server
+./llama-server -m models/llama-3.2-3b.gguf --port 8080
+
+# Configure DevHive
+export OPENAI_BASE_URL="http://localhost:8080/v1"
+export OPENAI_MODEL="llama-3.2-3b"
+```
+
+#### Option 2: Ollama
+
+```bash
+# Start Ollama (runs on 11434 by default)
+ollama serve
+
+# Pull a model
+ollama pull llama3.2
+
+# Configure DevHive
+export OPENAI_BASE_URL="http://localhost:11434/v1"
+export OPENAI_MODEL="llama3.2"
+```
+
+#### Option 3: LM Studio
+
+1. Start LM Studio
+2. Load a model
+3. Enable local server (default port 1234)
+
+```bash
+export OPENAI_BASE_URL="http://localhost:1234/v1"
+export OPENAI_MODEL="lmstudio-community/Meta-Llama-3.2-3B-Instruct-GGUF"
+```
+
+### Cloud API Setup (for Coding Mode)
+
+DevHive inherits Gemini CLI's authentication options. Choose one:
+
+#### Option 1: Login with Google (OAuth)
+
+```bash
+devhive
+# Follow browser authentication flow
+```
+
+**Free tier:** 60 requests/min, 1,000 requests/day with Gemini 2.5 Pro
+
+#### Option 2: Gemini API Key
+
+```bash
+export GEMINI_API_KEY="YOUR_API_KEY"
+devhive
+```
+
+Get your key from [Google AI Studio](https://aistudio.google.com/apikey)
+
+#### Option 3: Anthropic Claude
+
+```bash
+export ANTHROPIC_API_KEY="YOUR_API_KEY"
+# Claude support via future integration
+```
+
+#### Option 4: Vertex AI
+
+```bash
+export GOOGLE_API_KEY="YOUR_API_KEY"
+export GOOGLE_GENAI_USE_VERTEXAI=true
+devhive
+```
+
+## 🚀 Usage
+
+### Interactive Mode (Gemini CLI)
+
+Full access to all Gemini CLI features for ad-hoc coding:
+
+```bash
+devhive
+> Help me refactor this authentication module
+> /chat What's the best way to implement rate limiting?
+> @file src/api.ts Add error handling to this endpoint
+```
+
+All [Gemini CLI commands](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/commands.md) are available:
+- `/help` - Show available commands
+- `/chat` - Start conversation mode
+- `/mcp` - Manage MCP servers
+- `/settings` - Configure DevHive
+- And many more...
+
+### BMAD Workflow Mode ✨ NEW
+
+Structured team-scale development with LangGraph orchestration:
+
+#### Step 1: Planning (Local LLM)
+
+```bash
+# Start local LLM server (llama.cpp, Ollama, etc.)
+ollama serve  # or: ./llama-server -m llama-3.2-3b.gguf --port 8080
+
+# Set environment
+export OPENAI_BASE_URL="http://localhost:11434/v1"
+export OPENAI_MODEL="llama3.2"
+
+# Create epic with BMAD planning workflow
+devhive epic create "Build a todo app with React and Node.js"
+# This runs: Analyst → PM → Architect → PO (validate/shard)
+# Output: docs/project-brief.md, docs/prd.md, docs/architecture.md
+
+# Shard into individual files (optional, for file-based workflows)
+devhive epic break
+# Output: docs/epics/*, docs/stories/*
+```
+
+#### Step 2: Parallel Development (Cloud API)
+
+```bash
+# Set cloud API (for powerful coding)
+export GEMINI_API_KEY="your-key"
+
+# Start development swarm
+devhive swarm start --max-agents 3
+# This runs: SM (draft) → Assign → Dev Swarm → QA → Integrate
+# Multiple agents work simultaneously on different stories
+
+# Check progress
+devhive swarm status
+```
+
+**Current Status:** Planning and swarm workflows are fully implemented with LLM integration. File I/O (saving to `docs/`) is next!
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    DevHive CLI                      │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  Interactive Mode          BMAD Workflow Mode      │
+│  ┌──────────────┐         ┌──────────────────┐    │
+│  │ Gemini CLI   │         │ LangGraph        │    │
+│  │ Features     │         │ State Machines   │    │
+│  │              │         │                  │    │
+│  │ • Chat       │         │ • Epic Planning  │    │
+│  │ • Tools      │         │ • Story Decomp   │    │
+│  │ • MCP        │         │ • Agent Swarm    │    │
+│  │ • Extensions │         │ • Integration    │    │
+│  └──────┬───────┘         └────────┬─────────┘    │
+│         │                          │               │
+│         └──────────┬───────────────┘               │
+│                    │                               │
+│         ┌──────────▼──────────────┐                │
+│         │   LLM Router            │                │
+│         │                         │                │
+│         │  Planning → Local LLM   │                │
+│         │  Coding   → Cloud API   │                │
+│         └──────────┬──────────────┘                │
+│                    │                               │
+├────────────────────┼───────────────────────────────┤
+│                    │                               │
+│    ┌───────────────▼──────────┐                    │
+│    │                          │                    │
+│    │   Local LLM Endpoint     │                    │
+│    │   (llama.cpp/Ollama)     │                    │
+│    │                          │                    │
+│    │   • Requirements         │                    │
+│    │   • Architecture         │                    │
+│    │   • Story Breakdown      │                    │
+│    │   • Estimation           │                    │
+│    └──────────────────────────┘                    │
+│                                                     │
+│    ┌──────────────────────────┐                    │
+│    │                          │                    │
+│    │   Cloud API              │                    │
+│    │   (Gemini/Claude/Grok)   │                    │
+│    │                          │                    │
+│    │   • Code Generation      │                    │
+│    │   • Parallel Agents      │                    │
+│    │   • Code Review          │                    │
+│    │   • Debugging            │                    │
+│    └──────────────────────────┘                    │
+└─────────────────────────────────────────────────────┘
+```
+
+### Package Structure
+
+```
+packages/
+├── cli/              # Interactive UI and command handling
+├── core/             # Shared tools, LLM clients, file ops
+├── workflows/        # (Coming) LangGraph BMAD workflows
+└── agents/           # (Coming) Agent personas and coordination
+```
+
+## 🔌 Extensibility
+
+DevHive inherits Gemini CLI's extension system:
+
+### MCP (Model Context Protocol) Servers
+
+Connect custom tools and data sources:
+
+```bash
+devhive mcp add github
+devhive mcp add slack
+devhive mcp add database
+```
+
+```text
+> @github List my open pull requests
+> @slack Send update to #dev channel
+> @database Query user analytics
+```
+
+See [MCP Integration Guide](./docs/tools/mcp-server.md)
+
+### Custom Commands
+
+Create reusable slash commands:
+
+```typescript
+// ~/.devhive/commands/deploy.ts
+export default {
+  name: 'deploy',
+  description: 'Deploy to staging',
+  action: async (context) => {
+    // Your deployment logic
+  }
+}
+```
+
+```bash
+> /deploy
 ```
 
 ## 📋 Key Features
 
-### Code Understanding & Generation
+### From Gemini CLI (Interactive Mode)
 
-- Query and edit large codebases
-- Generate new apps from PDFs, images, or sketches using multimodal capabilities
-- Debug issues and troubleshoot with natural language
+- **🔧 Built-in tools**: File operations, shell commands, web fetching, Google Search grounding
+- **🔌 MCP support**: Extend with custom integrations
+- **💾 Checkpointing**: Save and resume complex sessions
+- **📝 Context files**: GEMINI.md for project-specific instructions
+- **💻 Terminal-first**: Designed for developers who live in the command line
+- **🛡️ Open source**: Apache 2.0 licensed
 
-### Automation & Integration
+### DevHive BMAD Extensions (Coming Soon)
 
-- Automate operational tasks like querying pull requests or handling complex rebases
-- Use MCP servers to connect new capabilities, including [media generation with Imagen, Veo or Lyria](https://github.com/GoogleCloudPlatform/vertex-ai-creative-studio/tree/main/experiments/mcp-genmedia)
-- Run non-interactively in scripts for workflow automation
-
-### Advanced Capabilities
-
-- Ground your queries with built-in [Google Search](https://ai.google.dev/gemini-api/docs/grounding) for real-time information
-- Conversation checkpointing to save and resume complex sessions
-- Custom context files (GEMINI.md) to tailor behavior for your projects
-
-### GitHub Integration
-
-Integrate Gemini CLI directly into your GitHub workflows with [**Gemini CLI GitHub Action**](https://github.com/google-github-actions/run-gemini-cli):
-
-- **Pull Request Reviews**: Automated code review with contextual feedback and suggestions
-- **Issue Triage**: Automated labeling and prioritization of GitHub issues based on content analysis
-- **On-demand Assistance**: Mention `@gemini-cli` in issues and pull requests for help with debugging, explanations, or task delegation
-- **Custom Workflows**: Build automated, scheduled and on-demand workflows tailored to your team's needs
-
-## 🔐 Authentication Options
-
-Choose the authentication method that best fits your needs:
-
-### Option 1: Login with Google (OAuth login using your Google Account)
-
-**✨ Best for:** Individual developers as well as anyone who has a Gemini Code Assist License. (see [quota limits and terms of service](https://cloud.google.com/gemini/docs/quotas) for details)
-
-**Benefits:**
-
-- **Free tier**: 60 requests/min and 1,000 requests/day
-- **Gemini 2.5 Pro** with 1M token context window
-- **No API key management** - just sign in with your Google account
-- **Automatic updates** to latest models
-
-#### Start Gemini CLI, then choose _Login with Google_ and follow the browser authentication flow when prompted
-
-```bash
-gemini
-```
-
-#### If you are using a paid Code Assist License from your organization, remember to set the Google Cloud Project
-
-```bash
-# Set your Google Cloud Project
-export GOOGLE_CLOUD_PROJECT="YOUR_PROJECT_ID"
-gemini
-```
-
-### Option 2: Gemini API Key
-
-**✨ Best for:** Developers who need specific model control or paid tier access
-
-**Benefits:**
-
-- **Free tier**: 100 requests/day with Gemini 2.5 Pro
-- **Model selection**: Choose specific Gemini models
-- **Usage-based billing**: Upgrade for higher limits when needed
-
-```bash
-# Get your key from https://aistudio.google.com/apikey
-export GEMINI_API_KEY="YOUR_API_KEY"
-gemini
-```
-
-### Option 3: Vertex AI
-
-**✨ Best for:** Enterprise teams and production workloads
-
-**Benefits:**
-
-- **Enterprise features**: Advanced security and compliance
-- **Scalable**: Higher rate limits with billing account
-- **Integration**: Works with existing Google Cloud infrastructure
-
-```bash
-# Get your key from Google Cloud Console
-export GOOGLE_API_KEY="YOUR_API_KEY"
-export GOOGLE_GENAI_USE_VERTEXAI=true
-gemini
-```
-
-For Google Workspace accounts and other authentication methods, see the [authentication guide](./docs/get-started/authentication.md).
-
-## 🚀 Getting Started
-
-### Basic Usage
-
-#### Start in current directory
-
-```bash
-gemini
-```
-
-#### Include multiple directories
-
-```bash
-gemini --include-directories ../lib,../docs
-```
-
-#### Use specific model
-
-```bash
-gemini -m gemini-2.5-flash
-```
-
-#### Non-interactive mode for scripts
-
-Get a simple text response:
-
-```bash
-gemini -p "Explain the architecture of this codebase"
-```
-
-For more advanced scripting, including how to parse JSON and handle errors, use
-the `--output-format json` flag to get structured output:
-
-```bash
-gemini -p "Explain the architecture of this codebase" --output-format json
-```
-
-### Quick Examples
-
-#### Start a new project
-
-```bash
-cd new-project/
-gemini
-> Write me a Discord bot that answers questions using a FAQ.md file I will provide
-```
-
-#### Analyze existing code
-
-```bash
-git clone https://github.com/google-gemini/gemini-cli
-cd gemini-cli
-gemini
-> Give me a summary of all of the changes that went in yesterday
-```
+- **🎯 Epic management**: Create and decompose large features
+- **🤖 Agent swarm**: Parallel AI developers working simultaneously
+- **📊 Progress tracking**: Real-time status of multi-agent workflows
+- **🔀 Smart routing**: Automatic LLM selection based on task type
+- **💰 Cost optimization**: Use cheap local models for planning
+- **🔄 State persistence**: Resume multi-day development sessions
 
 ## 📚 Documentation
 
-### Getting Started
+Since DevHive is built on Gemini CLI, most documentation applies:
 
-- [**Quickstart Guide**](./docs/get-started/index.md) - Get up and running quickly.
-- [**Authentication Setup**](./docs/get-started/authentication.md) - Detailed auth configuration.
-- [**Configuration Guide**](./docs/get-started/configuration.md) - Settings and customization.
-- [**Keyboard Shortcuts**](./docs/cli/keyboard-shortcuts.md) - Productivity tips.
+- [Gemini CLI Quickstart](https://github.com/google-gemini/gemini-cli/blob/main/docs/get-started/index.md)
+- [Authentication Guide](https://github.com/google-gemini/gemini-cli/blob/main/docs/get-started/authentication.md)
+- [Commands Reference](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/commands.md)
+- [MCP Server Integration](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md)
+- [Custom Extensions](https://github.com/google-gemini/gemini-cli/blob/main/docs/extensions/index.md)
 
-### Core Features
+### DevHive-Specific Docs (Coming)
 
-- [**Commands Reference**](./docs/cli/commands.md) - All slash commands (`/help`, `/chat`, etc).
-- [**Custom Commands**](./docs/cli/custom-commands.md) - Create your own reusable commands.
-- [**Context Files (GEMINI.md)**](./docs/cli/gemini-md.md) - Provide persistent context to Gemini CLI.
-- [**Checkpointing**](./docs/cli/checkpointing.md) - Save and resume conversations.
-- [**Token Caching**](./docs/cli/token-caching.md) - Optimize token usage.
+- BMAD Workflow Guide
+- Multi-Agent Orchestration
+- LLM Router Configuration
+- Cost Optimization Strategies
 
-### Tools & Extensions
+## 🔐 Environment Variables
 
-- [**Built-in Tools Overview**](./docs/tools/index.md)
-  - [File System Operations](./docs/tools/file-system.md)
-  - [Shell Commands](./docs/tools/shell.md)
-  - [Web Fetch & Search](./docs/tools/web-fetch.md)
-- [**MCP Server Integration**](./docs/tools/mcp-server.md) - Extend with custom tools.
-- [**Custom Extensions**](./docs/extensions/index.md) - Build and share your own commands.
+### Local LLM (Planning)
 
-### Advanced Topics
-
-- [**Headless Mode (Scripting)**](./docs/cli/headless.md) - Use Gemini CLI in automated workflows.
-- [**Architecture Overview**](./docs/architecture.md) - How Gemini CLI works.
-- [**IDE Integration**](./docs/ide-integration/index.md) - VS Code companion.
-- [**Sandboxing & Security**](./docs/cli/sandbox.md) - Safe execution environments.
-- [**Trusted Folders**](./docs/cli/trusted-folders.md) - Control execution policies by folder.
-- [**Enterprise Guide**](./docs/cli/enterprise.md) - Deploy and manage in a corporate environment.
-- [**Telemetry & Monitoring**](./docs/cli/telemetry.md) - Usage tracking.
-- [**Tools API Development**](./docs/core/tools-api.md) - Create custom tools.
-
-### Troubleshooting & Support
-
-- [**Troubleshooting Guide**](./docs/troubleshooting.md) - Common issues and solutions.
-- [**FAQ**](./docs/faq.md) - Frequently asked questions.
-- Use `/bug` command to report issues directly from the CLI.
-
-### Using MCP Servers
-
-Configure MCP servers in `~/.gemini/settings.json` to extend Gemini CLI with custom tools:
-
-```text
-> @github List my open pull requests
-> @slack Send a summary of today's commits to #dev channel
-> @database Run a query to find inactive users
+```bash
+OPENAI_BASE_URL="http://localhost:8080/v1"  # OpenAI-compatible endpoint
+OPENAI_MODEL="llama-3.2-3b"                 # Model name
+OPENAI_API_KEY="optional"                   # Most local servers don't need this
 ```
 
-See the [MCP Server Integration guide](./docs/tools/mcp-server.md) for setup instructions.
+### Cloud API (Coding)
+
+```bash
+# Option 1: Gemini
+GEMINI_API_KEY="your-key"
+
+# Option 2: Vertex AI
+GOOGLE_API_KEY="your-key"
+GOOGLE_GENAI_USE_VERTEXAI=true
+
+# Option 3: Anthropic (future)
+ANTHROPIC_API_KEY="your-key"
+```
+
+### DevHive Configuration
+
+```bash
+DEVHIVE_MAX_AGENTS=5        # Max parallel coding agents
+DEVHIVE_PLANNING_LLM=local  # local | cloud
+DEVHIVE_CODING_LLM=cloud    # local | cloud
+```
 
 ## 🤝 Contributing
 
-We welcome contributions! Gemini CLI is fully open source (Apache 2.0), and we encourage the community to:
+DevHive is a fork intended for experimentation with BMAD methodology. Contributions welcome!
 
-- Report bugs and suggest features.
-- Improve documentation.
-- Submit code improvements.
-- Share your MCP servers and extensions.
+### Quick Wins (Good First Issues)
 
-See our [Contributing Guide](./CONTRIBUTING.md) for development setup, coding standards, and how to submit pull requests.
+Easy features to implement:
 
-Check our [Official Roadmap](https://github.com/orgs/google-gemini/projects/11) for planned features and priorities.
+1. **Cost Tracker** - Parse LLM responses, track tokens, calculate costs
+2. **Story Templates** - Add more templates to `packages/workflows/src/templates/`
+3. **Agent Personas** - Create specialized agents (Frontend Expert, DevOps, etc.)
+4. **CLI Improvements** - Better error messages, colored output, progress bars
+5. **File I/O** - Save artifacts to `docs/` (see TODOs in epic/swarm commands)
 
-## 📖 Resources
+### How to Contribute
 
-- **[Official Roadmap](./ROADMAP.md)** - See what's coming next.
-- **[Changelog](./docs/changelogs/index.md)** - See recent notable updates.
-- **[NPM Package](https://www.npmjs.com/package/@google/gemini-cli)** - Package registry.
-- **[GitHub Issues](https://github.com/google-gemini/gemini-cli/issues)** - Report bugs or request features.
-- **[Security Advisories](https://github.com/google-gemini/gemini-cli/security/advisories)** - Security updates.
+- 🐛 **Report bugs** via [Issues](https://github.com/wenis/devhive/issues)
+- 💡 **Suggest features** - Add to GitHub Discussions
+- 🔧 **Submit PRs** - Check `/packages/workflows/ARCHITECTURE.md` first
+- 📝 **Documentation** - Improve guides, add examples
+- 🎨 **Agent Personas** - Contribute new agent definitions
+- 🧪 **Share Experiments** - Post your BMAD workflow results
 
-### Uninstall
+### Development Setup
 
-See the [Uninstall Guide](docs/cli/uninstall.md) for removal instructions.
+```bash
+git clone https://github.com/wenis/devhive.git
+cd devhive
+npm install
+npm run build
 
-## 📄 Legal
+# Run planning workflow example
+node packages/workflows/examples/planning.js
 
-- **License**: [Apache License 2.0](LICENSE)
-- **Terms of Service**: [Terms & Privacy](./docs/tos-privacy.md)
-- **Security**: [Security Policy](SECURITY.md)
+# Run swarm workflow example
+node packages/workflows/examples/swarm.js
+```
+
+See `CONTRIBUTING.md` for coding standards and PR guidelines.
+
+## 🙏 Acknowledgments
+
+**Built on the shoulders of giants:**
+
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli) - The foundation
+- [LangGraph](https://github.com/langchain-ai/langgraph) - State machine orchestration
+- [BMAD-METHOD](https://github.com/cagostino/BMAD-METHOD) - Multi-agent inspiration
+- [llama.cpp](https://github.com/ggerganov/llama.cpp) - Local LLM inference
+
+## 📄 License
+
+[Apache License 2.0](LICENSE) - Same as Gemini CLI
+
+## ⚠️ Status
+
+**Alpha/Experimental** - DevHive is in active development. Core infrastructure is complete, workflow implementation in progress.
+
+### ✅ Completed (v0.1.0)
+
+- **Interactive Gemini CLI mode** - Full Gemini CLI feature set available
+- **OpenAI-compatible LLM support** - Connect to llama.cpp, Ollama, LM Studio, etc.
+- **LLM routing infrastructure** - Automatic routing: planning → local LLM, coding → cloud API
+- **LangGraph workflow package** - State machines for BMAD orchestration
+- **BMAD agent personas** - 7 agents (Analyst, PM, Architect, PO, SM, Dev, QA) imported from devhive-bmad
+- **Parallelization-first SM** - Context-engineered Scrum Master for swarm optimization
+- **Planning workflow graph** - Analyst → PM → Architect → PO (validate/shard)
+- **Swarm workflow graph** - SM (draft) → Assign → Dev Swarm → QA → Integrate
+- **TypeScript state management** - PlanningState, SwarmState with typed channels
+
+### ✅ Also Completed (v0.2.0)
+
+- **Full LLM integration** - All planning and swarm nodes call actual LLMs
+- **QA review node** - Automated code quality checks with LLM
+- **Integration node** - Dependency-aware story completion and unblocking
+- **CLI commands** - `devhive epic create/break`, `devhive swarm start/status`
+- **Command registration** - Full integration with Gemini CLI command structure
+
+### 🚧 In Progress (v0.3.0)
+
+- **File I/O for artifacts** - Save PRD, architecture, epics to `docs/` directory
+- **State persistence** - LangGraph checkpointing for resumable workflows
+- **Error handling & retries** - Robust LLM call handling with backoff
+
+### 📋 Planned (v0.4.0+)
+
+#### Core Features
+- **Progress UI** - Ink-based terminal UI for swarm status with live updates
+- **Git integration** - Automatic commits with story completion, PR creation
+- **Smart agent assignment** - Match agents to stories by expertise/specialization
+- **Advanced parallelization** - File conflict detection and automatic resolution
+
+#### Cost & Performance
+- **Cost tracking** - Monitor local vs cloud API usage, estimate project costs
+- **Metrics dashboard** - Story velocity, agent efficiency, parallel utilization %
+- **Performance profiling** - Identify bottlenecks in workflow execution
+- **Model routing strategies** - Dynamic routing based on task complexity/cost
+
+#### Project Management
+- **Story prioritization** - Business value scoring, risk-based prioritization
+- **Brownfield support** - Workflows for existing codebases (from devhive-bmad)
+- **Multi-project workspaces** - Manage multiple projects with isolated configs
+- **External tool sync** - Jira/Linear/GitHub Projects integration
+
+#### Quality & Testing
+- **Actual test execution** - Run tests, not just LLM review
+- **Code review automation** - GitHub PR creation with AI-generated descriptions
+- **Coverage enforcement** - Minimum coverage requirements per story
+- **Security scanning** - Automated security checks in QA phase
+
+#### Customization & Learning
+- **Custom agent personas** - User-defined agent behaviors and specializations
+- **Template library** - Custom PRD/architecture/story templates
+- **Learning feedback loop** - Track success rates, improve prompts over time
+- **Configuration profiles** - Preset configs for different project types
+
+#### Documentation & Visualization
+- **Auto-documentation** - Generate docs from completed stories
+- **Dependency graphs** - Visual epic/story dependency trees
+- **Architecture evolution** - Track architecture changes over time
+- **Swarm activity dashboard** - Real-time visualization of agent work
+
+#### Developer Experience
+- **Voice input** - Voice-to-epic for rapid ideation
+- **Multi-language support** - Non-English prompts and documentation
+- **Checkpoint snapshots** - Save workflow state for rollback/branching
+- **Collaboration mode** - Multiple developers working with swarm
+- **VS Code extension** - In-editor swarm status and controls
+
+## 📂 Implementation Details
+
+### Packages
+
+```
+packages/
+├── cli/              # Gemini CLI (interactive mode)
+├── core/             # Shared LLM clients, tools, file ops
+│   └── openaiContentGenerator.ts  # ✅ OpenAI-compatible endpoint support
+└── workflows/        # ✅ LangGraph BMAD orchestration
+    ├── agents/       # BMAD personas + parallelization enhancement
+    ├── planning/     # Planning workflow (local LLM)
+    ├── swarm/        # Swarm workflow (cloud API)
+    └── types/        # State definitions
+```
+
+### Key Files
+
+**LLM Integration:**
+- `packages/core/src/core/openaiContentGenerator.ts` - OpenAI-compatible client
+- `packages/core/src/core/contentGenerator.ts` - AuthType.OPENAI_COMPATIBLE support
+
+**Workflows:**
+- `packages/workflows/src/planning/graph.ts` - Planning LangGraph state machine
+- `packages/workflows/src/planning/nodes.ts` - Planning agent implementations
+- `packages/workflows/src/swarm/graph.ts` - Swarm LangGraph state machine
+- `packages/workflows/src/swarm/nodes.ts` - Swarm agent implementations (with parallel dev)
+
+**Parallelization:**
+- `packages/workflows/src/agents/parallelization.ts` - SM enhancement for swarm optimization
+- `packages/workflows/src/agents/personas.ts` - Persona parser with parallelization mode
+
+**Documentation:**
+- `packages/workflows/README.md` - Workflow usage guide
+- `packages/workflows/ARCHITECTURE.md` - Detailed architecture and design patterns
 
 ---
 
 <p align="center">
-  Built with ❤️ by Google and the open source community
+  Fork of Gemini CLI • BMAD-Inspired • Built for experimentation
 </p>
