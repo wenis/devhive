@@ -7,7 +7,7 @@
     "url": "git+https://github.com/wenis/devhive.git"
   },
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "scripts": {
     "build": "node ../../scripts/build_package.js",
     "lint": "eslint . --ext .ts,.tsx",

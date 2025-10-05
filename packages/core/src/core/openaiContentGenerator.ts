@@ -6,16 +6,16 @@
 
 import OpenAI from 'openai';
 import type {
-  Content,
-  GenerateContentResponse,
   GenerateContentParameters,
   CountTokensParameters,
   CountTokensResponse,
   EmbedContentParameters,
   EmbedContentResponse,
-  Part,
   Candidate,
+  ContentListUnion,
+  PartUnion,
 } from '@google/genai';
+import { GenerateContentResponse, FinishReason } from '@google/genai';
 import type { ContentGenerator } from './contentGenerator.js';
 
 export interface OpenAICompatibleConfig {
@@ -25,36 +25,91 @@ export interface OpenAICompatibleConfig {
 }
 
 /**
+ * Converts a single part or content element to text.
+ */
+function partToText(part: PartUnion): string {
+  if (typeof part === 'string') {
+    return part;
+  }
+  if (typeof part === 'object' && 'text' in part && part.text) {
+    return part.text;
+  }
+  return '';
+}
+
+/**
  * Converts Gemini Content format to OpenAI ChatCompletion messages format.
  */
 function convertGeminiToOpenAI(
-  contents: Content | Content[],
+  contents: ContentListUnion,
 ): OpenAI.Chat.ChatCompletionMessageParam[] {
-  const contentArray = Array.isArray(contents) ? contents : [contents];
+  // ContentListUnion = Content | Content[] | PartUnion | PartUnion[]
 
-  return contentArray.map((content) => {
-    const role =
-      content.role === 'model'
-        ? ('assistant' as const)
-        : (content.role as 'user' | 'system' | 'assistant');
+  // Handle single PartUnion (string or Part)
+  if (
+    typeof contents === 'string' ||
+    ('text' in contents && !('role' in contents))
+  ) {
+    return [{ role: 'user', content: partToText(contents as PartUnion) }];
+  }
 
-    // Combine all text parts into a single message
-    const textParts = content.parts
-      ?.map((part: Part) => {
-        if ('text' in part && part.text) {
-          return part.text;
-        }
-        // Handle other part types if needed
-        return '';
-      })
-      .filter((text) => text.length > 0)
-      .join('\n');
+  // Handle array
+  if (Array.isArray(contents)) {
+    // Check if it's an array of Parts or Content objects
+    if (contents.length === 0) {
+      return [];
+    }
 
-    return {
+    const first = contents[0];
+    if (typeof first === 'string' || ('text' in first && !('role' in first))) {
+      // Array of PartUnion
+      const text = contents
+        .map((p) => partToText(p as PartUnion))
+        .filter((t) => t.length > 0)
+        .join('\n');
+      return [{ role: 'user', content: text }];
+    }
+
+    // Array of Content
+    return contents.map((content) => {
+      const role =
+        (content as { role?: string }).role === 'model'
+          ? ('assistant' as const)
+          : ((content as { role?: string }).role as
+              | 'user'
+              | 'system'
+              | 'assistant');
+
+      const textParts = (content as { parts?: PartUnion[] }).parts
+        ?.map(partToText)
+        .filter((text: string) => text.length > 0)
+        .join('\n');
+
+      return {
+        role,
+        content: textParts || '',
+      };
+    });
+  }
+
+  // Single Content object
+  const content = contents as { role?: string; parts?: PartUnion[] };
+  const role =
+    content.role === 'model'
+      ? ('assistant' as const)
+      : (content.role as 'user' | 'system' | 'assistant');
+
+  const textParts = content.parts
+    ?.map(partToText)
+    .filter((text: string) => text.length > 0)
+    .join('\n');
+
+  return [
+    {
       role,
       content: textParts || '',
-    };
-  });
+    },
+  ];
 }
 
 /**
@@ -63,9 +118,6 @@ function convertGeminiToOpenAI(
 function convertOpenAIToGemini(
   response: OpenAI.Chat.ChatCompletion,
 ): GenerateContentResponse {
-  const choice = response.choices[0];
-  const message = choice?.message;
-
   const candidates: Candidate[] = response.choices.map((choice) => ({
     content: {
       role: 'model',
@@ -101,8 +153,6 @@ function convertOpenAIToGemini(
 function convertOpenAIStreamToGemini(
   chunk: OpenAI.Chat.ChatCompletionChunk,
 ): GenerateContentResponse {
-  const delta = chunk.choices[0]?.delta;
-
   const candidates: Candidate[] = chunk.choices.map((choice) => ({
     content: {
       role: 'model',
@@ -127,17 +177,17 @@ function convertOpenAIStreamToGemini(
  */
 function convertFinishReason(
   reason: string | null | undefined,
-): string | undefined {
+): FinishReason | undefined {
   if (!reason) return undefined;
 
-  const mapping: Record<string, string> = {
-    stop: 'STOP',
-    length: 'MAX_TOKENS',
-    content_filter: 'SAFETY',
-    tool_calls: 'STOP',
+  const mapping: Record<string, FinishReason> = {
+    stop: FinishReason.STOP,
+    length: FinishReason.MAX_TOKENS,
+    content_filter: FinishReason.SAFETY,
+    tool_calls: FinishReason.STOP,
   };
 
-  return mapping[reason] || 'OTHER';
+  return mapping[reason] || FinishReason.OTHER;
 }
 
 /**
@@ -158,7 +208,7 @@ export class OpenAICompatibleContentGenerator implements ContentGenerator {
 
   async generateContent(
     request: GenerateContentParameters,
-    userPromptId: string,
+    _userPromptId: string,
   ): Promise<GenerateContentResponse> {
     const messages = convertGeminiToOpenAI(request.contents);
 
@@ -167,16 +217,32 @@ export class OpenAICompatibleContentGenerator implements ContentGenerator {
       let systemMessage = '';
       if (typeof systemInstruction === 'string') {
         systemMessage = systemInstruction;
-      } else if ('text' in systemInstruction) {
-        systemMessage = systemInstruction.text || '';
+      } else if (
+        typeof systemInstruction === 'object' &&
+        'text' in systemInstruction
+      ) {
+        systemMessage = (systemInstruction as { text?: string }).text || '';
       } else if (Array.isArray(systemInstruction)) {
         systemMessage = systemInstruction
-          .map((part) => ('text' in part ? part.text : ''))
+          .map((part) => {
+            if (typeof part === 'string') return part;
+            if (typeof part === 'object' && 'text' in part)
+              return (part as { text?: string }).text || '';
+            return '';
+          })
           .join('\n');
-      } else if ('parts' in systemInstruction) {
+      } else if (
+        typeof systemInstruction === 'object' &&
+        'parts' in systemInstruction
+      ) {
         systemMessage =
-          systemInstruction.parts
-            ?.map((part) => ('text' in part ? part.text : ''))
+          (systemInstruction as { parts?: PartUnion[] }).parts
+            ?.map((part) => {
+              if (typeof part === 'string') return part;
+              if (typeof part === 'object' && 'text' in part)
+                return (part as { text?: string }).text || '';
+              return '';
+            })
             .join('\n') || '';
       }
 
@@ -206,56 +272,77 @@ export class OpenAICompatibleContentGenerator implements ContentGenerator {
     }
   }
 
-  async *generateContentStream(
+  async generateContentStream(
     request: GenerateContentParameters,
-    userPromptId: string,
-  ): AsyncGenerator<GenerateContentResponse> {
-    const messages = convertGeminiToOpenAI(request.contents);
+    _userPromptId: string,
+  ): Promise<AsyncGenerator<GenerateContentResponse>> {
+    const client = this.client;
+    const model = this.model;
 
-    const systemInstruction = request.config?.systemInstruction;
-    if (systemInstruction) {
-      let systemMessage = '';
-      if (typeof systemInstruction === 'string') {
-        systemMessage = systemInstruction;
-      } else if ('text' in systemInstruction) {
-        systemMessage = systemInstruction.text || '';
-      } else if (Array.isArray(systemInstruction)) {
-        systemMessage = systemInstruction
-          .map((part) => ('text' in part ? part.text : ''))
-          .join('\n');
-      } else if ('parts' in systemInstruction) {
-        systemMessage =
-          systemInstruction.parts
-            ?.map((part) => ('text' in part ? part.text : ''))
-            .join('\n') || '';
+    return (async function* () {
+      const messages = convertGeminiToOpenAI(request.contents);
+
+      const systemInstruction = request.config?.systemInstruction;
+      if (systemInstruction) {
+        let systemMessage = '';
+        if (typeof systemInstruction === 'string') {
+          systemMessage = systemInstruction;
+        } else if (
+          typeof systemInstruction === 'object' &&
+          'text' in systemInstruction
+        ) {
+          systemMessage = (systemInstruction as { text?: string }).text || '';
+        } else if (Array.isArray(systemInstruction)) {
+          systemMessage = systemInstruction
+            .map((part) => {
+              if (typeof part === 'string') return part;
+              if (typeof part === 'object' && 'text' in part)
+                return (part as { text?: string }).text || '';
+              return '';
+            })
+            .join('\n');
+        } else if (
+          typeof systemInstruction === 'object' &&
+          'parts' in systemInstruction
+        ) {
+          systemMessage =
+            (systemInstruction as { parts?: PartUnion[] }).parts
+              ?.map((part) => {
+                if (typeof part === 'string') return part;
+                if (typeof part === 'object' && 'text' in part)
+                  return (part as { text?: string }).text || '';
+                return '';
+              })
+              .join('\n') || '';
+        }
+
+        if (systemMessage) {
+          messages.unshift({
+            role: 'system',
+            content: systemMessage,
+          });
+        }
       }
 
-      if (systemMessage) {
-        messages.unshift({
-          role: 'system',
-          content: systemMessage,
+      try {
+        const stream = await client.chat.completions.create({
+          model,
+          messages,
+          temperature: request.config?.temperature,
+          max_tokens: request.config?.maxOutputTokens,
+          top_p: request.config?.topP,
+          stop: request.config?.stopSequences,
+          stream: true,
         });
-      }
-    }
 
-    try {
-      const stream = await this.client.chat.completions.create({
-        model: this.model,
-        messages,
-        temperature: request.config?.temperature,
-        max_tokens: request.config?.maxOutputTokens,
-        top_p: request.config?.topP,
-        stop: request.config?.stopSequences,
-        stream: true,
-      });
-
-      for await (const chunk of stream) {
-        yield convertOpenAIStreamToGemini(chunk);
+        for await (const chunk of stream) {
+          yield convertOpenAIStreamToGemini(chunk);
+        }
+      } catch (error) {
+        console.error('OpenAI streaming error:', error);
+        throw error;
       }
-    } catch (error) {
-      console.error('OpenAI streaming error:', error);
-      throw error;
-    }
+    })();
   }
 
   async countTokens(
@@ -263,17 +350,48 @@ export class OpenAICompatibleContentGenerator implements ContentGenerator {
   ): Promise<CountTokensResponse> {
     // Most OpenAI-compatible endpoints don't have a token counting endpoint
     // We'll use a simple heuristic: ~4 characters per token
-    const contents = Array.isArray(request.contents)
-      ? request.contents
-      : [request.contents];
 
-    const totalChars = contents.reduce((sum, content) => {
-      const textLength =
-        content.parts
-          ?.map((part: Part) => ('text' in part ? part.text?.length || 0 : 0))
-          .reduce((a, b) => a + b, 0) || 0;
-      return sum + textLength;
-    }, 0);
+    let totalChars = 0;
+
+    // ContentListUnion = Content | Content[] | PartUnion | PartUnion[]
+    const contents = request.contents;
+
+    if (typeof contents === 'string') {
+      totalChars = contents.length;
+    } else if (Array.isArray(contents)) {
+      totalChars = contents.reduce((sum, item) => {
+        if (typeof item === 'string') {
+          return sum + item.length;
+        }
+
+        // Check if it's a Part or Content
+        if ('text' in item && !('role' in item)) {
+          // It's a Part
+          return sum + partToText(item as PartUnion).length;
+        }
+
+        // It's a Content
+        const content = item as { parts?: PartUnion[] };
+        const textLength =
+          content.parts
+            ?.map((part: PartUnion) => partToText(part).length)
+            .reduce((a: number, b: number) => a + b, 0) || 0;
+        return sum + textLength;
+      }, 0);
+    } else {
+      // Single Content or PartUnion
+      if ('text' in contents && !('role' in contents)) {
+        // Single Part
+        totalChars = partToText(contents as PartUnion).length;
+      } else {
+        // Single Content
+        const content = contents as { parts?: PartUnion[] };
+        totalChars =
+          content.parts
+            ?.map((part: PartUnion) => partToText(part).length)
+            .reduce((a: number, b: number) => a + b, 0) || 0;
+      }
+    }
 
     const estimatedTokens = Math.ceil(totalChars / 4);
 
@@ -283,7 +401,7 @@ export class OpenAICompatibleContentGenerator implements ContentGenerator {
   }
 
   async embedContent(
-    request: EmbedContentParameters,
+    _request: EmbedContentParameters,
   ): Promise<EmbedContentResponse> {
     // Embeddings are typically not used for planning tasks
     // If needed, this could be implemented using OpenAI's embeddings endpoint

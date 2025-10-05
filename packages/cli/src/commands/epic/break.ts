@@ -5,8 +5,6 @@
  */
 
 import type { CommandModule } from 'yargs';
-import { writeFileSync, mkdirSync } from 'fs';
-import { join } from 'path';
 
 async function shardEpics() {
   console.log('📂 Sharding epics into individual files...\n');

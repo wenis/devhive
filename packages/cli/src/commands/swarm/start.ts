@@ -5,7 +5,11 @@
  */
 
 import type { CommandModule } from 'yargs';
-import { createSwarmGraph, type SwarmState } from 'devhive-workflows';
+import {
+  createSwarmGraph,
+  type SwarmState,
+  type Story,
+} from 'devhive-workflows';
 import { createContentGenerator, AuthType } from '@google/gemini-cli-core';
 
 async function runSwarmWorkflow(options: { maxAgents?: number }) {
@@ -16,7 +20,7 @@ async function runSwarmWorkflow(options: { maxAgents?: number }) {
     {
       authType: AuthType.LOGIN_WITH_GOOGLE,
     },
-    {} as any, // TODO: Pass actual config
+    {}, // TODO: Pass actual config
   );
 
   const abortController = new AbortController();
@@ -25,7 +29,7 @@ async function runSwarmWorkflow(options: { maxAgents?: number }) {
   const graph = createSwarmGraph(cloudGenerator, abortController.signal);
 
   // TODO: Load stories from docs/stories/
-  const stories: any[] = [];
+  const stories: Story[] = [];
 
   const maxAgents = options.maxAgents || 3;
 
@@ -61,7 +65,7 @@ async function runSwarmWorkflow(options: { maxAgents?: number }) {
 
     if (result.completedStories && result.completedStories.length > 0) {
       console.log('Completed stories:');
-      result.completedStories.forEach((story) => {
+      result.completedStories.forEach((story: Story) => {
         console.log(`  ✓ ${story.id}: ${story.title}`);
       });
     }
@@ -86,7 +90,8 @@ export const startCommand: CommandModule = {
       type: 'number',
       default: 3,
     }),
-  handler: async (argv: any) => {
-    await runSwarmWorkflow({ maxAgents: argv.maxAgents });
+  handler: async (argv) => {
+    const maxAgents = argv['maxAgents'] as number | undefined;
+    await runSwarmWorkflow({ maxAgents });
   },
 };

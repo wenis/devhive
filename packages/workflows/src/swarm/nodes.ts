@@ -5,7 +5,7 @@
  */
 
 import type { ContentGenerator } from 'devhive-core';
-import type { SwarmState, Story, Epic } from '../types/state.js';
+import type { SwarmState, Story, TestResult } from '../types/state.js';
 import { getAgentPrompt } from '../agents/personas.js';
 
 /**
@@ -13,7 +13,7 @@ import { getAgentPrompt } from '../agents/personas.js';
  */
 export function createSwarmNodes(
   contentGenerator: ContentGenerator,
-  abortSignal: AbortSignal,
+  _abortSignal: AbortSignal,
 ) {
   /**
    * SM drafts story with parallelization focus
@@ -42,7 +42,10 @@ EXISTING DEPENDENCIES:
 ${nextStory.dependencies?.length ? nextStory.dependencies.join(', ') : 'None'}
 
 CONTEXT - Other stories in queue:
-${state.storyQueue.slice(1, 6).map((s) => `- ${s.id}: ${s.title}`).join('\n')}
+${state.storyQueue
+  .slice(1, 6)
+  .map((s) => `- ${s.id}: ${s.title}`)
+  .join('\n')}
 
 YOUR TASK:
 1. Break this story into detailed tasks
@@ -86,7 +89,7 @@ Return a JSON structure:
 
     const text =
       response.candidates?.[0]?.content?.parts
-        ?.map((part: any) => part.text)
+        ?.map((part: { text?: string }) => part.text)
         .join('') || '{}';
 
     try {
@@ -133,7 +136,9 @@ Return a JSON structure:
    */
   async function assignNode(state: SwarmState): Promise<Partial<SwarmState>> {
     const idleAgents = state.agents.filter((a) => a.status === 'idle');
-    const unassignedStories = state.activeStories.filter((s) => !s.assignedAgent);
+    const unassignedStories = state.activeStories.filter(
+      (s) => !s.assignedAgent,
+    );
 
     if (idleAgents.length === 0 || unassignedStories.length === 0) {
       return { phase: 'execute' };
@@ -141,15 +146,21 @@ Return a JSON structure:
 
     // Simple round-robin assignment for now
     // TODO: Smart assignment based on agent expertise, story complexity, etc.
-    const assignments = unassignedStories.slice(0, idleAgents.length).map((story, i) => ({
-      storyId: story.id,
-      agentId: idleAgents[i].id,
-    }));
+    const assignments = unassignedStories
+      .slice(0, idleAgents.length)
+      .map((story, i) => ({
+        storyId: story.id,
+        agentId: idleAgents[i].id,
+      }));
 
     const updatedStories = state.activeStories.map((story) => {
       const assignment = assignments.find((a) => a.storyId === story.id);
       if (assignment) {
-        return { ...story, assignedAgent: assignment.agentId, status: 'in_progress' as const };
+        return {
+          ...story,
+          assignedAgent: assignment.agentId,
+          status: 'in_progress' as const,
+        };
       }
       return story;
     });
@@ -186,7 +197,9 @@ Return a JSON structure:
 
     // Execute all agents in parallel
     const devPromises = workingAgents.map(async (agent) => {
-      const story = state.activeStories.find((s) => s.id === agent.assignedStory);
+      const story = state.activeStories.find(
+        (s) => s.id === agent.assignedStory,
+      );
       if (!story) return null;
 
       // Use cloud API for coding (powerful but expensive)
@@ -243,7 +256,7 @@ Return your implementation as a JSON structure:
 
       const text =
         response.candidates?.[0]?.content?.parts
-          ?.map((part: any) => part.text)
+          ?.map((part: { text?: string }) => part.text)
           .join('') || '{}';
 
       try {
@@ -256,7 +269,10 @@ Return your implementation as a JSON structure:
           status: 'pending' as const,
         };
       } catch (error) {
-        console.error(`Agent ${agent.id} failed to generate valid code:`, error);
+        console.error(
+          `Agent ${agent.id} failed to generate valid code:`,
+          error,
+        );
         return null;
       }
     });
@@ -285,7 +301,9 @@ Return your implementation as a JSON structure:
    * QA review node: Reviews completed work
    */
   async function qaReviewNode(state: SwarmState): Promise<Partial<SwarmState>> {
-    const pendingChanges = state.codeChanges.filter((c) => c.status === 'pending');
+    const pendingChanges = state.codeChanges.filter(
+      (c) => c.status === 'pending',
+    );
 
     if (pendingChanges.length === 0) {
       return { phase: 'integrate' };
@@ -342,31 +360,39 @@ Return JSON:
       );
 
       const text =
-        response.candidates?.[0]?.content?.parts?.map((part: any) => part.text).join('') || '{}';
+        response.candidates?.[0]?.content?.parts
+          ?.map((part: { text?: string }) => part.text)
+          .join('') || '{}';
 
       try {
         const review = JSON.parse(text);
-        return {
+        const testResult: TestResult = {
           storyId: change.storyId,
-          ...review.testResults,
+          suite: 'QA Review',
+          passed: review.testResults.passed ?? 0,
+          failed: review.testResults.failed ?? 0,
+          coverage: review.testResults.coverage,
           failures: review.issues.map((issue: string) => ({
             test: 'QA Review',
             error: issue,
           })),
-          approved: review.approved,
         };
+        return testResult;
       } catch (error) {
         console.error('Failed to parse QA review:', error);
         return null;
       }
     });
 
-    const testResults = (await Promise.all(reviewPromises)).filter((r) => r !== null);
+    const testResults = (await Promise.all(reviewPromises)).filter(
+      (r): r is TestResult => r !== null,
+    );
 
     // Update code change status based on reviews
     const updatedChanges = state.codeChanges.map((change) => {
       const review = testResults.find((r) => r?.storyId === change.storyId);
-      if (review?.approved) {
+      // Mark as reviewed if there are no failures
+      if (review && review.failed === 0) {
         return { ...change, status: 'reviewed' as const };
       }
       return change;
@@ -375,7 +401,7 @@ Return JSON:
     const hasFailures = testResults.some((r) => r && r.failed > 0);
 
     return {
-      testResults: testResults as any,
+      testResults,
       codeChanges: updatedChanges,
       phase: hasFailures ? 'execute' : 'integrate', // Back to dev if issues found
     };
@@ -384,8 +410,12 @@ Return JSON:
   /**
    * Integration node: Merges approved changes
    */
-  async function integrateNode(state: SwarmState): Promise<Partial<SwarmState>> {
-    const reviewedChanges = state.codeChanges.filter((c) => c.status === 'reviewed');
+  async function integrateNode(
+    state: SwarmState,
+  ): Promise<Partial<SwarmState>> {
+    const reviewedChanges = state.codeChanges.filter(
+      (c) => c.status === 'reviewed',
+    );
 
     if (reviewedChanges.length === 0) {
       return { phase: 'complete' };
@@ -418,7 +448,9 @@ Return JSON:
       if (!blockedStory) continue;
 
       const allDepsCompleted = blockedStory.dependencies?.every((depId) =>
-        [...state.completedStories, ...completedStories].some((s) => s.id === depId),
+        [...state.completedStories, ...completedStories].some(
+          (s) => s.id === depId,
+        ),
       );
 
       if (allDepsCompleted) {

@@ -22,7 +22,7 @@ As the Scrum Master for a parallel AI development swarm, your PRIMARY responsibi
    - Frontend vs Backend split
    - Separate microservices
    - Independent features (e.g., "User Profile" vs "Notifications")
-   - Vertical slices through layers (UI → API → DB for one feature)
+   - Vertical slices through layers (UI -> API -> DB for one feature)
 
 2. **Minimize Shared State**
    - Avoid stories that modify the same files
@@ -45,14 +45,13 @@ As the Scrum Master for a parallel AI development swarm, your PRIMARY responsibi
 ### Story Structuring for Swarms:
 
 **BAD (Sequential):**
-```
+
 Story 1: Build entire authentication system
 Story 2: Add user profiles (depends on auth)
 Story 3: Add notifications (depends on auth)
-```
 
 **GOOD (Parallel-Ready):**
-```
+
 Story 1: Define auth interfaces + mocks (SCAFFOLDING)
 Story 2: Frontend auth UI (uses mocks from Story 1)
 Story 3: Backend auth API (implements interfaces from Story 1)
@@ -60,7 +59,7 @@ Story 4: User profile UI (independent, uses auth mocks)
 Story 5: Notifications UI (independent, uses auth mocks)
 Story 6: User profile API (independent backend work)
 Story 7: Notifications API (independent backend work)
-```
+
 *Parallelization: After Story 1, Stories 2-7 can run simultaneously!*
 
 ### Scaffolding Stories (Unlocking Parallel Work):
@@ -86,14 +85,14 @@ These are small, foundational stories that unblock multiple downstream stories:
    - Testing framework
 
 **Example:**
-```
+
 Epic: E-commerce Checkout
 
 Story 1 (SCAFFOLDING): Define checkout API contract + mocks
   - OpenAPI spec for checkout endpoints
   - Mock server implementation
   - TypeScript types generated
-  ✅ UNBLOCKS: Stories 2, 3, 4, 5 (all can start in parallel)
+  UNBLOCKS: Stories 2, 3, 4, 5 (all can start in parallel)
 
 Story 2: Checkout UI flow
   - Uses mocked API from Story 1
@@ -110,18 +109,15 @@ Story 4: Order confirmation emails
 Story 5: Inventory deduction logic
   - Uses API contract from Story 1
   - Independent backend module
-```
 
 ### Dependency Annotations:
 
 When creating stories, ALWAYS include:
 
-```yaml
 dependencies:
   hard: ["EPIC-001-001"]  # Must be merged before starting
   soft: ["EPIC-001-005"]  # Can start with mocks, needs final integration
   blocks: ["EPIC-001-007", "EPIC-001-008"]  # Other stories waiting on this
-```
 
 ### Swarm Orchestration Rules:
 
@@ -131,8 +127,8 @@ dependencies:
    - Wave 3: Integration stories (connect the pieces)
 
 2. **File Conflict Detection**
-   - If two stories modify the same file path → HARD dependency
-   - If two stories modify same database table → sequence or partition
+   - If two stories modify the same file path -> HARD dependency
+   - If two stories modify same database table -> sequence or partition
 
 3. **Integration Stories**
    - After parallel wave completes, create integration story
@@ -152,25 +148,25 @@ Before finalizing any story, ask yourself:
 
 ### Anti-Patterns to Avoid:
 
-❌ **The Monolith Story**: "Implement entire user management system"
-✅ **Split**: Interface definition + Auth UI + Auth API + Profile UI + Profile API
+[X] **The Monolith Story**: "Implement entire user management system"
+[OK] **Split**: Interface definition + Auth UI + Auth API + Profile UI + Profile API
 
-❌ **The Shared File**: Multiple stories modifying `app.ts`
-✅ **Extract**: Create `authRoutes.ts`, `profileRoutes.ts`, import into `app.ts` in integration story
+[X] **The Shared File**: Multiple stories modifying app.ts
+[OK] **Extract**: Create authRoutes.ts, profileRoutes.ts, import into app.ts in integration story
 
-❌ **The Database Bottleneck**: All stories wait for schema
-✅ **Schema First**: Story 1 creates schema, all others run in parallel
+[X] **The Database Bottleneck**: All stories wait for schema
+[OK] **Schema First**: Story 1 creates schema, all others run in parallel
 
-❌ **Assumed Dependencies**: "Story B needs Story A" (unspoken)
-✅ **Explicit Dependencies**: Mark dependencies in YAML, explain why
+[X] **Assumed Dependencies**: "Story B needs Story A" (unspoken)
+[OK] **Explicit Dependencies**: Mark dependencies in YAML, explain why
 
 ### Optimizing for Swarm Throughput:
 
 **Goal: Maximize number of stories in-flight**
 
 If you have 5 dev agents in the swarm:
-- ❌ 5 sequential stories = 5 time units
-- ✅ 1 scaffolding + 4 parallel = 2 time units (2.5x faster!)
+- [X] 5 sequential stories = 5 time units
+- [OK] 1 scaffolding + 4 parallel = 2 time units (2.5x faster!)
 
 Always ask: "How can I get to 5 stories running at once?"
 

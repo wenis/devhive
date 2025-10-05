@@ -24,10 +24,10 @@
   "files": [
     "dist"
   ],
-  "config": {
-  },
+  "config": {},
   "dependencies": {
     "devhive-core": "file:../core",
+    "devhive-workflows": "file:../workflows",
     "@google/genai": "1.16.0",
     "@iarna/toml": "^2.2.5",
     "@modelcontextprotocol/sdk": "^1.15.1",

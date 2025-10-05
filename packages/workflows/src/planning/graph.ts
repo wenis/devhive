@@ -6,7 +6,7 @@
 
 import { StateGraph, END } from '@langchain/langgraph';
 import type { ContentGenerator } from 'devhive-core';
-import type { PlanningState } from '../types/state.js';
+import type { PlanningState, Artifact, Epic, Story } from '../types/state.js';
 import { createPlanningNodes } from './nodes.js';
 
 /**
@@ -23,31 +23,34 @@ import { createPlanningNodes } from './nodes.js';
 // Define the graph channels (how state updates merge)
 const planningChannels = {
   projectBrief: {
-    value: (x: any, y: any) => y ?? x,
+    value: (x: Artifact | undefined, y: Artifact | undefined) => y ?? x,
     default: () => undefined,
   },
   prd: {
-    value: (x: any, y: any) => y ?? x,
+    value: (x: Artifact | undefined, y: Artifact | undefined) => y ?? x,
     default: () => undefined,
   },
   uxSpec: {
-    value: (x: any, y: any) => y ?? x,
+    value: (x: Artifact | undefined, y: Artifact | undefined) => y ?? x,
     default: () => undefined,
   },
   architecture: {
-    value: (x: any, y: any) => y ?? x,
+    value: (x: Artifact | undefined, y: Artifact | undefined) => y ?? x,
     default: () => undefined,
   },
   epics: {
-    value: (x: any[], y: any[]) => y ?? x,
+    value: (x: Epic[], y: Epic[]) => y ?? x,
     default: () => [],
   },
   stories: {
-    value: (x: any[], y: any[]) => y ?? x,
+    value: (x: Story[], y: Story[]) => y ?? x,
     default: () => [],
   },
   currentPhase: {
-    value: (x: any, y: any) => y ?? x,
+    value: (
+      x: PlanningState['currentPhase'],
+      y: PlanningState['currentPhase'],
+    ) => y ?? x,
     default: () => 'brief' as const,
   },
   validationIssues: {
@@ -59,11 +62,12 @@ const planningChannels = {
     default: () => false,
   },
   userMessage: {
-    value: (x: any, y: any) => y ?? x,
+    value: (x: string | undefined, y: string | undefined) => y ?? x,
     default: () => undefined,
   },
   projectType: {
-    value: (x: any, y: any) => y ?? x,
+    value: (x: PlanningState['projectType'], y: PlanningState['projectType']) =>
+      y ?? x,
     default: () => 'greenfield' as const,
   },
   includeUX: {
@@ -107,7 +111,7 @@ export function createPlanningGraph(
   abortSignal: AbortSignal,
 ) {
   const workflow = new StateGraph<PlanningState>({
-    channels: planningChannels as any,
+    channels: planningChannels,
   });
 
   // Create node implementations with LLM integration
@@ -124,7 +128,7 @@ export function createPlanningGraph(
   // Define edges
   workflow.addEdge('analyst', 'pm');
 
-  // Conditional: PM → UX or Architect
+  // Conditional: PM -> UX or Architect
   workflow.addConditionalEdges('pm', shouldIncludeUX, {
     ux: 'ux',
     architect: 'architect',
@@ -133,13 +137,13 @@ export function createPlanningGraph(
   workflow.addEdge('ux', 'architect');
   workflow.addEdge('architect', 'po_validate');
 
-  // Conditional: Validation → Shard or back to PM
+  // Conditional: Validation -> Shard or back to PM
   workflow.addConditionalEdges('po_validate', checkValidation, {
     pm: 'pm',
     po_shard: 'po_shard',
   });
 
-  // Conditional: Shard → END or loop
+  // Conditional: Shard -> END or loop
   workflow.addConditionalEdges('po_shard', checkComplete, {
     [END]: END,
     analyst: 'analyst',

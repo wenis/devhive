@@ -5,7 +5,11 @@
  */
 
 import type { CommandModule } from 'yargs';
-import { createPlanningGraph, type PlanningState } from 'devhive-workflows';
+import {
+  createPlanningGraph,
+  type PlanningState,
+  type Epic,
+} from 'devhive-workflows';
 import { createContentGenerator, AuthType } from '@google/gemini-cli-core';
 
 async function runPlanningWorkflow(idea: string, options: { ux?: boolean }) {
@@ -16,11 +20,12 @@ async function runPlanningWorkflow(idea: string, options: { ux?: boolean }) {
   const localGenerator = await createContentGenerator(
     {
       authType: AuthType.OPENAI_COMPATIBLE,
-      openaiBaseURL: process.env.OPENAI_BASE_URL || 'http://localhost:8080/v1',
-      openaiModel: process.env.OPENAI_MODEL || 'llama-3.2-3b',
-      apiKey: process.env.OPENAI_API_KEY,
+      openaiBaseURL:
+        process.env['OPENAI_BASE_URL'] || 'http://localhost:8080/v1',
+      openaiModel: process.env['OPENAI_MODEL'] || 'llama-3.2-3b',
+      apiKey: process.env['OPENAI_API_KEY'],
     },
-    {} as any, // TODO: Pass actual config
+    {}, // TODO: Pass actual config
   );
 
   const abortController = new AbortController();
@@ -51,7 +56,7 @@ async function runPlanningWorkflow(idea: string, options: { ux?: boolean }) {
 
     if (result.epics && result.epics.length > 0) {
       console.log('Epics:');
-      result.epics.forEach((epic) => {
+      result.epics.forEach((epic: Epic) => {
         console.log(`  - ${epic.id}: ${epic.title}`);
       });
     }
@@ -82,7 +87,9 @@ export const createCommand: CommandModule = {
         type: 'boolean',
         default: false,
       }),
-  handler: async (argv: any) => {
-    await runPlanningWorkflow(argv.idea, { ux: argv.ux });
+  handler: async (argv) => {
+    const idea = argv['idea'] as string;
+    const ux = argv['ux'] as boolean;
+    await runPlanningWorkflow(idea, { ux });
   },
 };

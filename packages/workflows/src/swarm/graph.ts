@@ -6,7 +6,13 @@
 
 import { StateGraph, END } from '@langchain/langgraph';
 import type { ContentGenerator } from 'devhive-core';
-import type { SwarmState } from '../types/state.js';
+import type {
+  SwarmState,
+  Story,
+  AgentStatus,
+  CodeChange,
+  TestResult,
+} from '../types/state.js';
 import { createSwarmNodes } from './nodes.js';
 
 /**
@@ -21,15 +27,15 @@ import { createSwarmNodes } from './nodes.js';
 
 const swarmChannels = {
   activeStories: {
-    value: (x: any[], y: any[]) => y ?? x,
+    value: (x: Story[], y: Story[]) => y ?? x,
     default: () => [],
   },
   completedStories: {
-    value: (x: any[], y: any[]) => y ?? x,
+    value: (x: Story[], y: Story[]) => y ?? x,
     default: () => [],
   },
   agents: {
-    value: (x: any[], y: any[]) => y ?? x,
+    value: (x: AgentStatus[], y: AgentStatus[]) => y ?? x,
     default: () => [],
   },
   maxAgents: {
@@ -37,19 +43,19 @@ const swarmChannels = {
     default: () => 3,
   },
   storyQueue: {
-    value: (x: any[], y: any[]) => y ?? x,
+    value: (x: Story[], y: Story[]) => y ?? x,
     default: () => [],
   },
   codeChanges: {
-    value: (x: any[], y: any[]) => y ?? x,
+    value: (x: CodeChange[], y: CodeChange[]) => y ?? x,
     default: () => [],
   },
   testResults: {
-    value: (x: any[], y: any[]) => y ?? x,
+    value: (x: TestResult[], y: TestResult[]) => y ?? x,
     default: () => [],
   },
   phase: {
-    value: (x: any, y: any) => y ?? x,
+    value: (x: SwarmState['phase'], y: SwarmState['phase']) => y ?? x,
     default: () => 'assign' as const,
   },
   blockedStories: {
@@ -90,7 +96,7 @@ export function createSwarmGraph(
   abortSignal: AbortSignal,
 ) {
   const workflow = new StateGraph<SwarmState>({
-    channels: swarmChannels as any,
+    channels: swarmChannels,
   });
 
   // Create node implementations with LLM integration
@@ -108,13 +114,13 @@ export function createSwarmGraph(
   workflow.addEdge('assign', 'dev_swarm');
   workflow.addEdge('dev_swarm', 'qa_review');
 
-  // Conditional: QA → Dev (if issues) or Integrate
+  // Conditional: QA -> Dev (if issues) or Integrate
   workflow.addConditionalEdges('qa_review', needsMoreDev, {
     dev_swarm: 'dev_swarm',
     integrate: 'integrate',
   });
 
-  // Conditional: Integrate → Assign (more work) or END
+  // Conditional: Integrate -> Assign (more work) or END
   workflow.addConditionalEdges('integrate', hasMoreWork, {
     assign: 'assign',
     [END]: END,
