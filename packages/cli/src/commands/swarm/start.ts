@@ -16,11 +16,12 @@ async function runSwarmWorkflow(options: { maxAgents?: number }) {
   console.log('🐝 Starting DevHive development swarm...\n');
 
   // Create cloud API content generator for coding
+  // TODO: Pass actual Config object instead of type assertion
   const cloudGenerator = await createContentGenerator(
     {
       authType: AuthType.LOGIN_WITH_GOOGLE,
     },
-    {}, // TODO: Pass actual config
+    {} as Record<string, unknown>,
   );
 
   const abortController = new AbortController();
@@ -57,7 +58,10 @@ async function runSwarmWorkflow(options: { maxAgents?: number }) {
   console.log('   SM → Assign → Dev Swarm → QA → Integrate\n');
 
   try {
-    const result = await graph.invoke(initialState);
+    // LangGraph requires states with index signatures; use type assertion to bridge the gap
+    const result = (await graph.invoke(
+      initialState as Record<string, unknown>,
+    )) as unknown as SwarmState;
 
     console.log('\n✅ Swarm execution complete!\n');
     console.log(`Stories completed: ${result.completedStories?.length || 0}`);

@@ -27,7 +27,7 @@ export function validateAuthMethodWithSettings(
 
 export const useAuthCommand = (settings: LoadedSettings, config: Config) => {
   const [authState, setAuthState] = useState<AuthState>(
-    AuthState.Unauthenticated,
+    AuthState.Authenticated,
   );
 
   const [authError, setAuthError] = useState<string | null>(null);

@@ -37,4 +37,25 @@ for (const file of sbFiles) {
   copyFileSync(join(root, file), join(bundleDir, basename(file)));
 }
 
+// Copy BMAD agent prompts from devhive-bmad project
+const bmadRoot = join(root, '..', 'devhive-bmad');
+const bmadAgentsDir = join(bmadRoot, 'bmad-core', 'agents');
+const bundlePromptsDir = join(bundleDir, 'prompts');
+
+if (existsSync(bmadAgentsDir)) {
+  // Create prompts directory in bundle
+  if (!existsSync(bundlePromptsDir)) {
+    mkdirSync(bundlePromptsDir, { recursive: true });
+  }
+
+  // Copy agent markdown files
+  const agentFiles = glob.sync('*.md', { cwd: bmadAgentsDir });
+  for (const file of agentFiles) {
+    copyFileSync(join(bmadAgentsDir, file), join(bundlePromptsDir, file));
+  }
+  console.log(`Copied ${agentFiles.length} agent prompts from devhive-bmad`);
+} else {
+  console.warn(`Warning: BMAD agents directory not found at ${bmadAgentsDir}`);
+}
+
 console.log('Assets copied to bundle/');

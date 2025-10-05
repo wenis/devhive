@@ -10,23 +10,18 @@ import {
   type PlanningState,
   type Epic,
 } from 'devhive-workflows';
-import { createContentGenerator, AuthType } from '@google/gemini-cli-core';
+import { OpenAICompatibleContentGenerator } from 'devhive-core';
 
 async function runPlanningWorkflow(idea: string, options: { ux?: boolean }) {
   console.log('🚀 Starting DevHive planning workflow...\n');
   console.log(`Idea: ${idea}\n`);
 
   // Create local LLM content generator for planning
-  const localGenerator = await createContentGenerator(
-    {
-      authType: AuthType.OPENAI_COMPATIBLE,
-      openaiBaseURL:
-        process.env['OPENAI_BASE_URL'] || 'http://localhost:8080/v1',
-      openaiModel: process.env['OPENAI_MODEL'] || 'llama-3.2-3b',
-      apiKey: process.env['OPENAI_API_KEY'],
-    },
-    {}, // TODO: Pass actual config
-  );
+  const localGenerator = new OpenAICompatibleContentGenerator({
+    baseURL: process.env['OPENAI_BASE_URL'] || 'http://localhost:8080/v1',
+    model: process.env['OPENAI_MODEL'] || 'llama-3.2-3b',
+    apiKey: process.env['OPENAI_API_KEY'],
+  });
 
   const abortController = new AbortController();
 
@@ -48,7 +43,10 @@ async function runPlanningWorkflow(idea: string, options: { ux?: boolean }) {
   console.log('   Analyst → PM → Architect → PO (validate/shard)\n');
 
   try {
-    const result = await graph.invoke(initialState);
+    // LangGraph requires states with index signatures; use type assertion to bridge the gap
+    const result = (await graph.invoke(
+      initialState as Record<string, unknown>,
+    )) as unknown as PlanningState;
 
     console.log('\n✅ Planning complete!\n');
     console.log(`Epics created: ${result.epics?.length || 0}`);

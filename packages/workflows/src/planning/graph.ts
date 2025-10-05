@@ -117,40 +117,41 @@ export function createPlanningGraph(
   // Create node implementations with LLM integration
   const nodes = createPlanningNodes(contentGenerator, abortSignal);
 
-  // Add nodes
-  workflow.addNode('analyst', nodes.analystNode);
-  workflow.addNode('pm', nodes.pmNode);
-  workflow.addNode('ux', nodes.uxNode);
-  workflow.addNode('architect', nodes.architectNode);
-  workflow.addNode('po_validate', nodes.poValidateNode);
-  workflow.addNode('po_shard', nodes.poShardNode);
+  // Add nodes (chain calls to properly type the graph)
+  const graph = workflow
+    .addNode('analyst', nodes.analystNode)
+    .addNode('pm', nodes.pmNode)
+    .addNode('ux', nodes.uxNode)
+    .addNode('architect', nodes.architectNode)
+    .addNode('po_validate', nodes.poValidateNode)
+    .addNode('po_shard', nodes.poShardNode);
 
   // Define edges
-  workflow.addEdge('analyst', 'pm');
+  graph.addEdge('analyst', 'pm');
 
   // Conditional: PM -> UX or Architect
-  workflow.addConditionalEdges('pm', shouldIncludeUX, {
+  graph.addConditionalEdges('pm', shouldIncludeUX, {
     ux: 'ux',
     architect: 'architect',
   });
 
-  workflow.addEdge('ux', 'architect');
-  workflow.addEdge('architect', 'po_validate');
+  graph.addEdge('ux', 'architect');
+  graph.addEdge('architect', 'po_validate');
 
   // Conditional: Validation -> Shard or back to PM
-  workflow.addConditionalEdges('po_validate', checkValidation, {
+  graph.addConditionalEdges('po_validate', checkValidation, {
     pm: 'pm',
     po_shard: 'po_shard',
   });
 
   // Conditional: Shard -> END or loop
-  workflow.addConditionalEdges('po_shard', checkComplete, {
+  graph.addConditionalEdges('po_shard', checkComplete, {
     [END]: END,
     analyst: 'analyst',
   });
 
   // Set entry point
-  workflow.setEntryPoint('analyst');
+  graph.setEntryPoint('analyst');
 
-  return workflow.compile();
+  return graph.compile();
 }

@@ -106,6 +106,53 @@ export const Help: React.FC<Help> = ({ commands }) => (
 
     <Box height={1} />
 
+    {/* DevHive Commands */}
+    <Text bold color={theme.text.primary}>
+      DevHive Commands:
+    </Text>
+    <Text color={theme.text.primary}>
+      <Text bold color={theme.text.accent}>
+        {' '}
+        devhive epic create &lt;idea&gt;
+      </Text>
+      {' - '}Create epic with BMAD planning workflow (uses local LLM)
+    </Text>
+    <Text color={theme.text.primary}>
+      <Text bold color={theme.text.accent}>
+        {'   '}--ux, -u
+      </Text>
+      {' - '}Include UX specification phase
+    </Text>
+    <Text color={theme.text.primary}>
+      <Text bold color={theme.text.accent}>
+        {' '}
+        devhive epic break
+      </Text>
+      {' - '}Shard PRD into individual epic and story files
+    </Text>
+    <Text color={theme.text.primary}>
+      <Text bold color={theme.text.accent}>
+        {' '}
+        devhive swarm start
+      </Text>
+      {' - '}Start parallel development swarm (uses cloud API)
+    </Text>
+    <Text color={theme.text.primary}>
+      <Text bold color={theme.text.accent}>
+        {'   '}--max-agents, -m
+      </Text>
+      {' - '}Maximum number of parallel dev agents (default: 3)
+    </Text>
+    <Text color={theme.text.primary}>
+      <Text bold color={theme.text.accent}>
+        {' '}
+        devhive swarm status
+      </Text>
+      {' - '}Show current swarm execution status
+    </Text>
+
+    <Box height={1} />
+
     {/* Shortcuts */}
     <Text bold color={theme.text.primary}>
       Keyboard Shortcuts:

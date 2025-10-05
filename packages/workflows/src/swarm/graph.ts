@@ -102,32 +102,33 @@ export function createSwarmGraph(
   // Create node implementations with LLM integration
   const nodes = createSwarmNodes(contentGenerator, abortSignal);
 
-  // Add nodes
-  workflow.addNode('sm_draft', nodes.smDraftNode);
-  workflow.addNode('assign', nodes.assignNode);
-  workflow.addNode('dev_swarm', nodes.devSwarmNode);
-  workflow.addNode('qa_review', nodes.qaReviewNode);
-  workflow.addNode('integrate', nodes.integrateNode);
+  // Add nodes (chain calls to properly type the graph)
+  const graph = workflow
+    .addNode('sm_draft', nodes.smDraftNode)
+    .addNode('assign', nodes.assignNode)
+    .addNode('dev_swarm', nodes.devSwarmNode)
+    .addNode('qa_review', nodes.qaReviewNode)
+    .addNode('integrate', nodes.integrateNode);
 
   // Define edges
-  workflow.addEdge('sm_draft', 'assign');
-  workflow.addEdge('assign', 'dev_swarm');
-  workflow.addEdge('dev_swarm', 'qa_review');
+  graph.addEdge('sm_draft', 'assign');
+  graph.addEdge('assign', 'dev_swarm');
+  graph.addEdge('dev_swarm', 'qa_review');
 
   // Conditional: QA -> Dev (if issues) or Integrate
-  workflow.addConditionalEdges('qa_review', needsMoreDev, {
+  graph.addConditionalEdges('qa_review', needsMoreDev, {
     dev_swarm: 'dev_swarm',
     integrate: 'integrate',
   });
 
   // Conditional: Integrate -> Assign (more work) or END
-  workflow.addConditionalEdges('integrate', hasMoreWork, {
+  graph.addConditionalEdges('integrate', hasMoreWork, {
     assign: 'assign',
     [END]: END,
   });
 
   // Set entry point
-  workflow.setEntryPoint('sm_draft');
+  graph.setEntryPoint('sm_draft');
 
-  return workflow.compile();
+  return graph.compile();
 }
